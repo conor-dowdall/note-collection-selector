@@ -1,88 +1,30 @@
-/**
- * A custom HTML element that allows users to select a musical note sequence theme.
- *
- * This component provides an interactive button that, when activated, displays
- * a modal dialog. Within this dialog, users can browse and select from a categorized
- * list of pre-defined musical note sequence themes (e.g., scales, arpeggios, modes).
- *
- * Key Features:
- * - **Interactive Display:** Renders a clickable button that shows the name
- * of the currently selected note sequence or a default prompt.
- * - **Modal Selection Dialog:** Presents an organized dialog with all available
- * note sequence themes, grouped by their category (e.g., "Scales", "Arpeggios").
- * - **Toggleable Information:** Allows users to reveal or hide detailed information
- * for each note sequence theme within the dialog.
- * - **Event-Driven Selection:** Dispatches a custom event ('note-sequence-selected')
- * when a user makes a selection, providing the theme's unique key and its full data object.
- * - **Programmatic Control:** Exposes public properties (`selectedNoteSequenceThemeKey`,
- * `selectedNoteSequenceTheme`) for direct JavaScript interaction.
- * - **Attribute Synchronization:** Supports setting the initial selected note sequence
- * via the `selected-note-sequence-theme-key` HTML attribute.
- * - **Random Selection:** Includes a public method to programmatically select a
- * random note sequence, useful for demonstrations or practice applications.
- *
- * @example
- * ```html
- * <note-sequence-selector selected-note-sequence-theme-key="ionian"></note-sequence-selector>
- * ```
- *
- * @example
- * ```css
- * <style>
- *   note-sequence-selector {
- *     --note-sequence-selector-padding: 0.8em 1.5em;
- *     border: 2px solid blue;
- *     border-radius: 5px;
- *   }
- * </style>
- * ```
- *
- * @module NoteSequenceSelector
- * @element note-sequence-selector
- * @fires NoteSequenceSelectedEvent
- * @attr {NoteSequenceThemeKey} selected-note-sequence-theme-key -
- * The unique key of the currently selected note sequence theme (e.g., "ionian", "dorian").
- * @cssprop {<length>} [--note-sequence-selector-padding=0] -
- * Controls the internal padding of the primary note selection button.
- * This defines the interactive area's size.
- * The padding property may be specified using one, two, three, or four values.
- * Each value is a <length> or a <percentage>. Negative values are invalid.
- */
-
 import {
-  allNoteSequenceThemes,
-  type NoteSequenceTheme,
-  type NoteSequenceThemeGroupKey,
-  noteSequenceThemeGroupsMetadata,
-  type NoteSequenceThemeKey,
-  noteSequenceThemes,
+  groupedNoteCollections,
+  type NoteCollection,
+  type NoteCollectionGroupKey,
+  noteCollectionGroupsMetadata,
+  type NoteCollectionKey,
+  noteCollections,
 } from "@musodojo/music-theory-data";
 
-/**
- * HTML template for the `note-sequence-selector` custom element's Shadow DOM structure and styles.
- * @private
- * @type {HTMLTemplateElement}
- */
-const noteSequenceSelectorTemplate = document.createElement("template");
-noteSequenceSelectorTemplate.innerHTML = /* HTML */ `
+const noteCollectionSelectorTemplate = document.createElement("template");
+noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
   <style>
     :host {
-      /* This custom property is used to pass user-defined padding from the light DOM
-         into the Shadow DOM, specifically for the interactive button. */
-      --_note-sequence-selector-padding: var(
-        --note-sequence-selector-padding,
-        0
+      --_main-icon-size: var(--main-icon-size, 2.5ch);
+      --_close-dialog-icon-size: var(--close-dialog-icon-size, 2ch);
+
+      --_dialog-backdrop-background: var(
+        --dialog-backdrop-background,
+        light-dark(rgb(255 255 255 / 50%), rgb(0 0 0 / 50%))
       );
+
+      --_default-spacing: var(--default-spacing, 0.5em);
 
       display: inline-block;
       font-size: inherit;
     }
 
-    /**
-     * Base styles for all buttons within the component.
-     * Ensures consistent font inheritance, removes default margins,
-     * padding, background, and borders to allow for custom styling.
-     */
     button {
       font: inherit;
       margin: 0;
@@ -92,78 +34,81 @@ noteSequenceSelectorTemplate.innerHTML = /* HTML */ `
       border: none;
     }
 
-    /**
-     * Styles for the primary button that opens the note sequence selection dialog.
-     * It expands to fill the host's content area, with its internal padding
-     * controlled by the --note-sequence-selector-padding custom property.
-     */
-
-    #note-sequence-selector-button {
-      width: 100%;
-      height: 100%;
-      padding: var(--_note-sequence-selector-padding);
+    svg {
+      fill: currentColor;
     }
 
-    /**
-     * Styles for the "close dialog" button within the modal.
-     */
-    #close-dialog-button {
-      display: block;
-      padding: 0.1em 0.5em;
-      border: none;
-      margin-inline-start: auto; /* Aligns button to the right */
+    [part="main-button"] {
+      display: grid;
+      place-items: center;
+
+      min-width: var(--_main-icon-size);
+
+      > #selected-note-name-span {
+        grid-area: 1 / 1;
+      }
+
+      > slot {
+        height: var(--_main-icon-size);
+      }
+
+      ::slotted(svg),
+      ::slotted(img),
+      > slot > svg {
+        grid-area: 1 / 1;
+        width: var(--_main-icon-size);
+        height: var(--_main-icon-size);
+      }
     }
 
-    /**
-     * Styles for the native HTML <dialog> element.
-     */
-    dialog {
-      padding: 0.5em;
+    [part="dialog"] {
+      padding: var(--_default-spacing);
+
+      > [part="close-dialog-button"] {
+        display: grid;
+        place-items: center;
+        padding: var(--_default-spacing);
+        border: none;
+        margin-inline-start: auto;
+        margin-block-end: var(--_default-spacing);
+
+        /* Size icons, but let text content flow naturally */
+        ::slotted(svg),
+        ::slotted(img),
+        > slot[name="close-dialog-icon"] > svg {
+          width: var(--_close-dialog-icon-size);
+          height: var(--_close-dialog-icon-size);
+          /* Ensure icons are on the same grid cell if multiple are slotted */
+          grid-area: 1 / 1;
+        }
+      }
     }
 
-    /**
-     * Styles for the dialog's backdrop (the overlay behind the modal).
-     */
-    dialog::backdrop {
-      background: rgba(0, 0, 0, 0.5);
+    [part="dialog"]::backdrop {
+      background: var(--_dialog-backdrop-background);
     }
 
-    /**
-     * Container for all note sequence groups within the dialog.
-     * Uses flex box for vertical arrangement with a gap between groups.
-     */
-    #note-sequences-container {
+    #note-collections-div {
       display: flex;
       flex-direction: column;
       gap: 1em;
       margin-block-start: 2em;
     }
 
-    /**
-     * Wrapper for each group of note sequences (e.g., "Diatonic Modes", "Dominant Variants").
-     */
     #group-wrapper {
       > h3 {
         margin: 0em;
       }
     }
 
-    /**
-     * Wrapper for the individual note sequence options within each group.
-     * Uses flex box for wrapping items with consistent spacing.
-     */
-    #group-note-sequences-wrapper {
+    #note-collection-group-div {
       margin-block: 0.5em;
       display: flex;
       flex-wrap: wrap;
       gap: 1em;
     }
 
-    /**
-     * Styles for individual note sequence option buttons within the dialog.
-     * Provides a clear visual boundary.
-     */
-    .note-sequence-option {
+    .note-collection-option {
       padding: 0.5em;
       min-width: 4ch;
       max-width: 80ch;
@@ -182,22 +127,17 @@ noteSequenceSelectorTemplate.innerHTML = /* HTML */ `
         text-align: center;
       }
 
-      /* Styles for the "more info" content area within each option */
       > .more-info-div {
         display: flex;
         flex-direction: column;
         gap: 0.5em;
       }
 
-      /* Hides the "more info" content when the 'hidden' class is present */
       > .more-info-div.hidden {
         display: none;
       }
     }
 
-    /**
-     * Styles for the checkbox label that toggles "more info" visibility.
-     */
     #toggle-more-info-label {
       padding: 0.5em;
       border: 0.1em solid currentColor;
@@ -205,139 +145,120 @@ noteSequenceSelectorTemplate.innerHTML = /* HTML */ `
       cursor: pointer;
     }
 
-    /**
-     * Utility class to hide elements.
-     */
     .hidden {
       display: none;
     }
   </style>
 
-  <button id="note-sequence-selector-button">Select Sequence</button>
+  <button part="main-button">
+    <span id="selected-note-collection-span" style="display: none;"></span>
+    <slot>
+      <!-- Default icon when no note is selected. Can be overridden by the user. This
+      SVG is part of the project and is licensed under CC0 1.0 Universal. -->
+      <svg viewBox="0 -960 960 960">
+        <path
+          style="display:inline;stroke-width:0.520841"
+          d="m 573.75,-880.70312 v 192.34374 51.64063 a 82.761503,123.486 59.29 0 0 -134.84375,5.70313 82.761503,123.486 59.29 0 0 -65.54687,134.14062 82.761503,123.486 59.29 0 0 147.65624,9.60938 82.761503,123.486 59.29 0 0 52.73438,-47.1875 v 90.07812 a 82.761503,123.486 59.29 0 0 -134.84375,5.78125 82.761503,123.486 59.29 0 0 -65.54687,134.0625 82.761503,123.486 59.29 0 0 147.65624,9.6875 82.761503,123.486 59.29 0 0 52.73438,-47.1875 v 89.29687 a 82.761503,123.486 59.29 0 0 -134.84375,5.78126 82.761503,123.486 59.29 0 0 -65.54687,134.14062 82.761503,123.486 59.29 0 0 147.65624,9.60938 82.761503,123.486 59.29 0 0 73.28126,-102.96876 82.761503,123.486 59.29 0 0 0,-2.26562 v -189.45312 a 82.761503,123.486 59.29 0 0 0,-2.26563 v -190.07813 a 82.761503,123.486 59.29 0 0 0,-2.26562 v -95.85938 -192.34374 z"
+        />
+      </svg>
+    </slot>
+  </button>
 
-  <dialog id="note-sequence-selector-dialog">
-    <button id="close-dialog-button">×</button>
+  <dialog part="dialog" aria-labelledby="dialog-heading">
+    <button part="close-dialog-button">
+      <slot name="close-dialog-icon">
+        <!-- Default icon when no note is selected. Can be overridden by the user. 
+         This SVG is part of the project and is licensed under CC0 1.0 Universal. -->
+        <svg viewBox="0 -960 960 960">
+          <path
+            transform="rotate(-45)"
+            d="m638.82-400h80v800h-80zm-360 360h800v80h-800z"
+          />
+        </svg>
+      </slot>
+    </button>
+
+    <h2 id="dialog-heading" class="visually-hidden">
+      Select a Note Collection
+    </h2>
+
     <label id="toggle-more-info-label">
       <input type="checkbox" id="toggle-more-info-checkbox" />
       more info
     </label>
-    <div id="note-sequences-container"></div>
+
+    <div id="note-collections-div">
+      <!-- the buttons in here are dynamically generated 
+       each with an attribute of part="note-collection-button" -->
+    </div>
   </dialog>
 `;
 
-/**
- * Interface representing the detail payload for the 'note-sequence-selected' custom event.
- */
 export interface NoteSequenceSelectedEventDetail {
-  /**
-   * The unique key of the selected note sequence theme (e.g., "ionian").
-   * @type {NoteSequenceThemeKey}
-   */
-  noteSequenceThemeKey: NoteSequenceThemeKey;
-  /**
-   * The full {@link NoteSequenceTheme} object corresponding to the selected key.
-   * @type {NoteSequenceTheme}
-   */
-  noteSequenceTheme: NoteSequenceTheme;
+  noteCollectionKey: NoteCollectionKey;
+  noteCollection: NoteCollection;
 }
 
-/**
- * Represents a custom HTML element for selecting a musical note sequence theme.
- *
- * @class NoteSequenceSelector
- * @extends HTMLElement
- * @property {NoteSequenceThemeKey | null} selectedNoteSequenceThemeKey - Gets or sets the unique key of the currently selected note sequence theme.
- * @property {NoteSequenceTheme | null} selectedNoteSequenceTheme - Gets the full data object for the currently selected note sequence theme. This property is read-only and derived from `selectedNoteSequenceThemeKey`.
- * @attr {string} selected-note-sequence-theme-key - The initial note sequence theme key to display when the component loads.
- */
-export class NoteSequenceSelector extends HTMLElement {
-  /**
-   * The Shadow DOM root attached to this custom element.
-   * @private
-   * @type {ShadowRoot}
-   */
+export class NoteCollectionSelector extends HTMLElement {
   #shadowRoot: ShadowRoot;
 
-  /**
-   * Reference to the main button that triggers the dialog.
-   * @private
-   * @type {HTMLButtonElement | null}
-   */
-  #noteSequenceSelectorButton: HTMLButtonElement | null = null;
+  #mainButton: HTMLButtonElement;
+  #closeDialogButton: HTMLButtonElement;
 
-  /**
-   * Reference to the modal dialog element that displays note sequence options.
-   * @private
-   * @type {HTMLDialogElement | null}
-   */
-  #noteSequenceSelectorDialog: HTMLDialogElement | null = null;
-
-  /**
-   * Reference to the container `div` within the dialog where note sequence groups are rendered.
-   * @private
-   * @type {HTMLDivElement | null}
-   */
+  #noteCollectionSelectorButton: HTMLButtonElement | null = null;
+  #noteCollectionSelectorDialog: HTMLDialogElement | null = null;
   #noteSequencesContainer: HTMLDivElement | null = null;
-
-  /**
-   * Reference to the checkbox that controls the visibility of "more info" sections.
-   * @private
-   * @type {HTMLInputElement | null}
-   */
   #toggleMoreInfoCheckbox: HTMLInputElement | null = null;
-
-  /**
-   * AbortController instance used to manage and clean up event listeners efficiently.
-   * @private
-   * @type {AbortController | null}
-   */
   #abortController: AbortController | null = null;
-
-  /**
-   * Stores the unique key of the currently selected note sequence theme.
-   * @private
-   * @type {NoteSequenceThemeKey | null}
-   */
-  #selectedNoteSequenceThemeKey: NoteSequenceThemeKey | null = null;
-
-  /**
-   * Stores the full data object for the currently selected note sequence theme.
-   * @private
-   * @type {NoteSequenceTheme | null}
-   */
-  #selectedNoteSequenceTheme: NoteSequenceTheme | null = null;
+  #selectedNoteCollectionKey: NoteCollectionKey | null = null;
+  #selectedNoteCollection: NoteCollection | null = null;
 
   static get observedAttributes(): string[] {
-    return ["selected-note-sequence-theme-key"];
+    return ["selected-note-collection-key"];
   }
 
   constructor() {
     super();
+
     this.#shadowRoot = this.attachShadow({ mode: "open" });
     this.#shadowRoot.appendChild(
-      noteSequenceSelectorTemplate.content.cloneNode(true),
+      noteCollectionSelectorTemplate.content.cloneNode(true)
     );
 
-    this.#noteSequenceSelectorButton = this.#shadowRoot.querySelector<
-      HTMLButtonElement
-    >(
-      "#note-sequence-selector-button",
+    const mainButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
+      '[part="main-button"]'
     );
-    this.#noteSequenceSelectorDialog = this.#shadowRoot.querySelector<
-      HTMLDialogElement
-    >(
-      "#note-sequence-selector-dialog",
+
+    const closeDialogButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
+      '[part="close-dialog-button"]'
     );
-    this.#noteSequencesContainer = this.#shadowRoot.querySelector<
-      HTMLDivElement
-    >(
-      "#note-sequences-container",
-    );
-    this.#toggleMoreInfoCheckbox = this.#shadowRoot.querySelector<
-      HTMLInputElement
-    >(
-      "#toggle-more-info-checkbox",
-    );
+
+    if (!mainButton || !closeDialogButton) {
+      throw new Error(
+        "NoteCollectionSelector: Critical elements not found in shadow DOM."
+      );
+    }
+
+    this.#mainButton = mainButton;
+    this.#closeDialogButton = closeDialogButton;
+
+    this.#noteCollectionSelectorButton =
+      this.#shadowRoot.querySelector<HTMLButtonElement>(
+        "#note-collection-selector-button"
+      );
+
+    this.#noteCollectionSelectorDialog =
+      this.#shadowRoot.querySelector<HTMLDialogElement>(
+        "#note-collection-selector-dialog"
+      );
+    this.#noteSequencesContainer =
+      this.#shadowRoot.querySelector<HTMLDivElement>(
+        "#note-collections-container"
+      );
+    this.#toggleMoreInfoCheckbox =
+      this.#shadowRoot.querySelector<HTMLInputElement>(
+        "#toggle-more-info-checkbox"
+      );
   }
 
   connectedCallback() {
@@ -345,28 +266,28 @@ export class NoteSequenceSelector extends HTMLElement {
     const { signal } = this.#abortController;
 
     if (
-      this.#noteSequenceSelectorButton &&
-      this.#noteSequenceSelectorDialog &&
+      this.#noteCollectionSelectorButton &&
+      this.#noteCollectionSelectorDialog &&
       this.#noteSequencesContainer &&
       this.#toggleMoreInfoCheckbox
     ) {
-      this.#noteSequenceSelectorButton.addEventListener(
+      this.#noteCollectionSelectorButton.addEventListener(
         "click",
         () => {
-          this.#noteSequenceSelectorDialog!.showModal();
+          this.#noteCollectionSelectorDialog!.showModal();
         },
-        { signal },
+        { signal }
       );
 
       const closeDialogButton = this.#shadowRoot.getElementById(
-        "close-dialog-button",
+        "close-dialog-button"
       ) as HTMLButtonElement;
       closeDialogButton.addEventListener(
         "click",
         () => {
-          this.#noteSequenceSelectorDialog!.close();
+          this.#noteCollectionSelectorDialog!.close();
         },
-        { signal },
+        { signal }
       );
 
       this.#toggleMoreInfoCheckbox.addEventListener(
@@ -374,11 +295,11 @@ export class NoteSequenceSelector extends HTMLElement {
         () => {
           this.#updateMoreInfoVisibility();
         },
-        { signal },
+        { signal }
       );
 
       this.#populateNoteSequences();
-      this.#updateNoteSequenceSelectorButtonText();
+      this.#updateNoteCollectionSelectorButtonText();
       this.#updateSelectedNoteSequenceAttribute();
     } else {
       console.error("Failed to find necessary elements in the shadow DOM");
@@ -392,31 +313,24 @@ export class NoteSequenceSelector extends HTMLElement {
   attributeChangedCallback(
     name: string,
     oldValue: string | null,
-    newValue: string | null,
+    newValue: string | null
   ) {
     // Only proceed if the attribute's value has actually changed
     if (oldValue === newValue) return;
-    if (name === "selected-note-sequence-theme-key") {
+    if (name === "selected-note-collection-key") {
       // Update the internal state with the new key
-      this.selectedNoteSequenceThemeKey = newValue as
-        | NoteSequenceThemeKey
-        | null;
+      this.selectedNoteCollectionKey = newValue as NoteCollectionKey | null;
       // Dispatch the selection event to notify consumers of the change
       this.#dispatchNoteSequenceSelectedEvent();
     }
   }
 
-  /**
-   * Populates the dialog with dynamically created buttons for each note sequence theme,
-   * organized by their respective groups.
-   * @private
-   */
   #populateNoteSequences() {
     if (!this.#noteSequencesContainer) return;
 
     this.#noteSequencesContainer.replaceChildren();
 
-    Object.entries(noteSequenceThemeGroupsMetadata).forEach(
+    Object.entries(noteCollectionGroupsMetadata).forEach(
       ([groupKey, groupMetadata]) => {
         const groupDiv = document.createElement("div");
         groupDiv.id = "group-wrapper";
@@ -428,55 +342,56 @@ export class NoteSequenceSelector extends HTMLElement {
         groupDiv.appendChild(groupMoreInfoDiv);
 
         const groupNoteSequencesWrapper = document.createElement("div");
-        groupNoteSequencesWrapper.id = "group-note-sequences-wrapper";
+        groupNoteSequencesWrapper.id = "note-collection-group-div";
         groupDiv.appendChild(groupNoteSequencesWrapper);
 
         const currentGroup =
-          noteSequenceThemes[groupKey as NoteSequenceThemeGroupKey];
+          groupedNoteCollections[groupKey as NoteCollectionGroupKey];
 
-        Object.entries(currentGroup).forEach(([key, theme]) => {
+        Object.entries(currentGroup).forEach(([key, collection]) => {
           const noteSequenceDiv = document.createElement("div");
-          noteSequenceDiv.classList.add("note-sequence-option");
+          noteSequenceDiv.classList.add("note-collection-option");
           noteSequenceDiv.innerHTML = /* HTML */ `<h4>
-            ${theme.primaryName}
+            ${collection.primaryName}
           </h4>`;
 
-          const themeMoreInfoDiv = document.createElement("div");
-          themeMoreInfoDiv.classList.add("more-info-div", "hidden");
-          themeMoreInfoDiv.innerHTML = this.#renderMoreInfo(theme);
-          noteSequenceDiv.appendChild(themeMoreInfoDiv);
+          const collectionMoreInfoDiv = document.createElement("div");
+          collectionMoreInfoDiv.classList.add("more-info-div", "hidden");
+          collectionMoreInfoDiv.innerHTML = this.#renderMoreInfo(collection);
+          noteSequenceDiv.appendChild(collectionMoreInfoDiv);
 
           noteSequenceDiv.addEventListener("click", () => {
-            this.#selectedNoteSequenceThemeKey = key as NoteSequenceThemeKey;
-            this.#selectedNoteSequenceTheme = theme;
-            this.#updateNoteSequenceSelectorButtonText();
+            this.#selectedNoteCollectionKey = key as NoteCollectionKey;
+            this.#selectedNoteCollection = collection;
+            this.#updateNoteCollectionSelectorButtonText();
             this.#updateSelectedNoteSequenceAttribute();
-            this.#noteSequenceSelectorDialog!.close();
+            this.#noteCollectionSelectorDialog!.close();
           });
 
           groupNoteSequencesWrapper.appendChild(noteSequenceDiv);
         });
 
         this.#noteSequencesContainer!.appendChild(groupDiv);
-      },
+      }
     );
   }
 
   /**
-   * Renders the detailed "more info" content for a given note sequence theme.
+   * Renders the detailed "more info" content for a given note collection.
    * @private
-   * @param {NoteSequenceTheme} noteSequenceTheme - The note sequence theme data object.
+   * @param {NoteCollection} noteCollection - The note collection data object.
    * @returns {string} An HTML string containing the detailed information.
    */
-  #renderMoreInfo(noteSequenceTheme: NoteSequenceTheme): string {
+  #renderMoreInfo(noteCollection: NoteCollection): string {
+    // TODO: replace this with updated code
+    // <div>${noteCollection.exampleNotes.join(", ")}</div>
     return /* HTML */ `
-      <div>${noteSequenceTheme.names.join(", ")}</div>
-      <div>${noteSequenceTheme.intervals.join(", ")}</div>
-      <div>${noteSequenceTheme.type.join(", ")}</div>
-      <div>${noteSequenceTheme.exampleNotes.join(", ")}</div>
-      <div>${noteSequenceTheme.characteristics.join(", ")}</div>
-      <div>${noteSequenceTheme.patternShort.join("-")}</div>
-      <div>${noteSequenceTheme.pattern.join("-")}</div>
+      <div>${noteCollection.names.join(", ")}</div>
+      <div>${noteCollection.intervals.join(", ")}</div>
+      <div>${noteCollection.type.join(", ")}</div>
+      <div>${noteCollection.characteristics.join(", ")}</div>
+      <div>${noteCollection.patternShort.join("-")}</div>
+      <div>${noteCollection.pattern.join("-")}</div>
     `;
   }
 
@@ -487,7 +402,7 @@ export class NoteSequenceSelector extends HTMLElement {
    */
   #updateMoreInfoVisibility() {
     const moreInfoElements = this.#shadowRoot?.querySelectorAll(
-      ".more-info-div",
+      ".more-info-div"
     ) as NodeListOf<HTMLDivElement>;
     moreInfoElements.forEach((el) => {
       el.classList.toggle("hidden", !this.#toggleMoreInfoCheckbox!.checked);
@@ -496,123 +411,121 @@ export class NoteSequenceSelector extends HTMLElement {
 
   /**
    * Updates the text content of the main note selector button to reflect
-   * the `primaryName` of the currently selected note sequence theme, or a default text.
+   * the `primaryName` of the currently selected note collection, or a default text.
    * @private
    */
-  #updateNoteSequenceSelectorButtonText() {
-    this.#noteSequenceSelectorButton!.textContent = this
-        .#selectedNoteSequenceTheme
-      ? this.#selectedNoteSequenceTheme.primaryName
+  #updateNoteCollectionSelectorButtonText() {
+    this.#noteCollectionSelectorButton!.textContent = this
+      .#selectedNoteCollection
+      ? this.#selectedNoteCollection.primaryName
       : "Select Sequence";
   }
 
   /**
-   * Synchronizes the `selected-note-sequence-theme-key` attribute on the host element
+   * Synchronizes the `selected-note-collection-key` attribute on the host element
    * with the component's internal state.
    * @private
    */
   #updateSelectedNoteSequenceAttribute() {
-    if (this.#selectedNoteSequenceThemeKey) {
+    if (this.#selectedNoteCollectionKey) {
       this.setAttribute(
-        "selected-note-sequence-theme-key",
-        this.#selectedNoteSequenceThemeKey,
+        "selected-note-collection-key",
+        this.#selectedNoteCollectionKey
       );
     } else {
-      this.removeAttribute("selected-note-sequence-theme-key");
+      this.removeAttribute("selected-note-collection-key");
     }
   }
 
   /**
-   * Dispatches a custom event named 'note-sequence-selected' when a note sequence is chosen.
-   * The event bubbles and composes, carrying the key and the full data object of the selected theme.
+   * Dispatches a custom event named 'note-collection-selected' when a note collection is chosen.
+   * The event bubbles and composes, carrying the key and the full data object of the selected note collection.
    * @private
    * @fires NoteSequenceSelectedEvent
    */
   #dispatchNoteSequenceSelectedEvent() {
     if (
-      this.#selectedNoteSequenceThemeKey !== null &&
-      this.#selectedNoteSequenceTheme !== null
+      this.#selectedNoteCollectionKey !== null &&
+      this.#selectedNoteCollection !== null
     ) {
       this.dispatchEvent(
         new CustomEvent<NoteSequenceSelectedEventDetail>(
-          "note-sequence-selected",
+          "note-collection-selected",
           {
             detail: {
-              noteSequenceThemeKey: this.#selectedNoteSequenceThemeKey,
-              noteSequenceTheme: this.#selectedNoteSequenceTheme,
+              noteCollectionKey: this.#selectedNoteCollectionKey,
+              noteCollection: this.#selectedNoteCollection,
             },
             bubbles: true,
             composed: true, // Allows the event to cross the Shadow DOM boundary
-          },
-        ),
+          }
+        )
       );
     } else {
       console.warn(
-        "attempted to dispatch note-sequence-selected event with null data",
+        "attempted to dispatch note-collection-selected event with null data"
       );
     }
   }
 
   /**
-   * Selects a random note sequence theme from all available themes and updates
+   * Selects a random note collection from all available and updates
    * the component's state and display.
-   * This method programmatically sets the `selectedNoteSequenceThemeKey` property.
+   * This method programmatically sets the `selectedNoteCollectionKey` property.
    * @public
    */
   setRandomNoteSequence() {
-    const allNoteSequenceThemesKeys = Object.keys(allNoteSequenceThemes);
-    const randomIndex = Math.floor(
-      Math.random() * allNoteSequenceThemesKeys.length,
-    );
-    this.selectedNoteSequenceThemeKey = allNoteSequenceThemesKeys[
+    const noteCollectionsKeys = Object.keys(noteCollections);
+    const randomIndex = Math.floor(Math.random() * noteCollectionsKeys.length);
+    this.selectedNoteCollectionKey = noteCollectionsKeys[
       randomIndex
-    ] as NoteSequenceThemeKey;
+    ] as NoteCollectionKey;
   }
 
   /**
-   * Gets the unique key of the currently selected note sequence theme.
-   * @prop {NoteSequenceThemeKey | null} selectedNoteSequenceThemeKey
-   * @returns {NoteSequenceThemeKey | null} The theme key (e.g., "ionian") or `null` if no theme is selected.
+   * Gets the unique key of the currently selected note collection.
+   * @prop {NoteCollectionKey | null} selectedNoteCollectionKey
+   * @returns {NoteCollectionKey | null} The note collection key (e.g., "ionian") or `null` if no collection is selected.
    */
-  get selectedNoteSequenceThemeKey(): NoteSequenceThemeKey | null {
-    return this.#selectedNoteSequenceThemeKey;
+  get selectedNoteCollectionKey(): NoteCollectionKey | null {
+    return this.#selectedNoteCollectionKey;
   }
 
   /**
-   * Sets the currently selected note sequence theme by its unique key.
+   * Sets the currently selected note collection by its unique key.
    * This will update the component's display and internal state. If a valid key
-   * is provided, the corresponding `NoteSequenceTheme` object will be looked up
+   * is provided, the corresponding `NoteCollection` object will be looked up
    * and stored internally. Setting to `null` clears the selection.
-   * @param {NoteSequenceThemeKey | null} newNoteSequenceThemeKey - The unique key of the theme to select.
-   * @prop {NoteSequenceThemeKey | null} selectedNoteSequenceThemeKey
+   * @param {NoteCollectionKey | null} newNoteCollectionKey - The unique key of the note collection to select.
+   * @prop {NoteCollectionKey | null} selectedNoteCollectionKey
    */
-  set selectedNoteSequenceThemeKey(
-    newNoteSequenceThemeKey: NoteSequenceThemeKey | null,
+  set selectedNoteCollectionKey(
+    newNoteCollectionKey: NoteCollectionKey | null
   ) {
-    this.#selectedNoteSequenceThemeKey = newNoteSequenceThemeKey;
-    // Look up the full theme object based on the key, or set to null if key is null
-    this.#selectedNoteSequenceTheme = newNoteSequenceThemeKey
-      ? allNoteSequenceThemes[newNoteSequenceThemeKey]
+    this.#selectedNoteCollectionKey = newNoteCollectionKey;
+    // Look up the full note collection object based on the key, or set to null if key is null
+    this.#selectedNoteCollection = newNoteCollectionKey
+      ? noteCollections[newNoteCollectionKey]
       : null;
-    this.#updateNoteSequenceSelectorButtonText();
+    this.#updateNoteCollectionSelectorButtonText();
     this.#updateSelectedNoteSequenceAttribute();
     // No need to dispatch event here, as attributeChangedCallback will do it
   }
 
   /**
-   * Gets the full data object for the currently selected note sequence theme.
-   * This property is read-only and is derived from `selectedNoteSequenceThemeKey`.
-   * @prop {NoteSequenceTheme | null} selectedNoteSequenceTheme
-   * @returns {NoteSequenceTheme | null} The full theme object or `null` if no theme is selected.
+   * Gets the full data object for the currently selected note collection.
+   * This property is read-only and is derived from `selectedNoteCollectionKey`.
+   * @prop {NoteCollection | null} selectedNoteCollection
+   * @returns {NoteCollection | null} The full note collection object or `null` if no collection is selected.
    * @readonly
    */
-  get selectedNoteSequenceTheme(): NoteSequenceTheme | null {
-    return this.#selectedNoteSequenceTheme;
+  get selectedNoteCollection(): NoteCollection | null {
+    return this.#selectedNoteCollection;
   }
 }
 
 /**
- * Defines the custom element 'note-sequence-selector' in the browser's CustomElementRegistry.
+ * Defines the custom element 'note-collection-selector' in the browser's CustomElementRegistry.
  * This makes the element available for use in HTML documents.
  */
-customElements.define("note-sequence-selector", NoteSequenceSelector);
+customElements.define("note-collection-selector", NoteCollectionSelector);
