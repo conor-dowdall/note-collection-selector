@@ -44,7 +44,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
 
       min-width: var(--_main-icon-size);
 
-      > #selected-note-name-span {
+      > #main-button-text-span {
         grid-area: 1 / 1;
       }
 
@@ -82,17 +82,17 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
           grid-area: 1 / 1;
         }
       }
+
+      > #note-collections-div {
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+        margin-block-start: 2em;
+      }
     }
 
     [part="dialog"]::backdrop {
       background: var(--_dialog-backdrop-background);
-    }
-
-    #note-collections-div {
-      display: flex;
-      flex-direction: column;
-      gap: 1em;
-      margin-block-start: 2em;
     }
 
     #group-wrapper {
@@ -151,7 +151,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
   </style>
 
   <button part="main-button">
-    <span id="selected-note-collection-span" style="display: none;"></span>
+    <span id="main-button-text-span" style="display: none;"></span>
     <slot>
       <!-- Default icon when no note is selected. Can be overridden by the user. This
       SVG is part of the project and is licensed under CC0 1.0 Universal. -->
@@ -202,13 +202,14 @@ export interface NoteSequenceSelectedEventDetail {
 export class NoteCollectionSelector extends HTMLElement {
   #shadowRoot: ShadowRoot;
 
-  #mainButton: HTMLButtonElement;
-  #closeDialogButton: HTMLButtonElement;
+  // cache these critical elements in the constructor with #cacheDomElements()
+  // and throw an error if they are not found
+  #mainButton!: HTMLButtonElement;
+  #dialog!: HTMLDialogElement;
+  #closeDialogButton!: HTMLButtonElement;
+  #toggleMoreInfoCheckbox!: HTMLInputElement;
+  #noteCollectionsDiv!: HTMLDivElement;
 
-  #noteCollectionSelectorButton: HTMLButtonElement | null = null;
-  #noteCollectionSelectorDialog: HTMLDialogElement | null = null;
-  #noteSequencesContainer: HTMLDivElement | null = null;
-  #toggleMoreInfoCheckbox: HTMLInputElement | null = null;
   #abortController: AbortController | null = null;
   #selectedNoteCollectionKey: NoteCollectionKey | null = null;
   #selectedNoteCollection: NoteCollection | null = null;
@@ -219,91 +220,18 @@ export class NoteCollectionSelector extends HTMLElement {
 
   constructor() {
     super();
-
     this.#shadowRoot = this.attachShadow({ mode: "open" });
     this.#shadowRoot.appendChild(
       noteCollectionSelectorTemplate.content.cloneNode(true)
     );
-
-    const mainButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
-      '[part="main-button"]'
-    );
-
-    const closeDialogButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
-      '[part="close-dialog-button"]'
-    );
-
-    if (!mainButton || !closeDialogButton) {
-      throw new Error(
-        "NoteCollectionSelector: Critical elements not found in shadow DOM."
-      );
-    }
-
-    this.#mainButton = mainButton;
-    this.#closeDialogButton = closeDialogButton;
-
-    this.#noteCollectionSelectorButton =
-      this.#shadowRoot.querySelector<HTMLButtonElement>(
-        "#note-collection-selector-button"
-      );
-
-    this.#noteCollectionSelectorDialog =
-      this.#shadowRoot.querySelector<HTMLDialogElement>(
-        "#note-collection-selector-dialog"
-      );
-    this.#noteSequencesContainer =
-      this.#shadowRoot.querySelector<HTMLDivElement>(
-        "#note-collections-container"
-      );
-    this.#toggleMoreInfoCheckbox =
-      this.#shadowRoot.querySelector<HTMLInputElement>(
-        "#toggle-more-info-checkbox"
-      );
+    this.#cacheDomElements();
   }
 
   connectedCallback() {
-    this.#abortController = new AbortController();
-    const { signal } = this.#abortController;
-
-    if (
-      this.#noteCollectionSelectorButton &&
-      this.#noteCollectionSelectorDialog &&
-      this.#noteSequencesContainer &&
-      this.#toggleMoreInfoCheckbox
-    ) {
-      this.#noteCollectionSelectorButton.addEventListener(
-        "click",
-        () => {
-          this.#noteCollectionSelectorDialog!.showModal();
-        },
-        { signal }
-      );
-
-      const closeDialogButton = this.#shadowRoot.getElementById(
-        "close-dialog-button"
-      ) as HTMLButtonElement;
-      closeDialogButton.addEventListener(
-        "click",
-        () => {
-          this.#noteCollectionSelectorDialog!.close();
-        },
-        { signal }
-      );
-
-      this.#toggleMoreInfoCheckbox.addEventListener(
-        "change",
-        () => {
-          this.#updateMoreInfoVisibility();
-        },
-        { signal }
-      );
-
-      this.#populateNoteSequences();
-      this.#updateNoteCollectionSelectorButtonText();
-      this.#updateSelectedNoteSequenceAttribute();
-    } else {
-      console.error("Failed to find necessary elements in the shadow DOM");
-    }
+    this.#populateNoteCollectionsDiv();
+    this.#addEventListeners();
+    this.#updateNoteCollectionSelectorButtonText();
+    this.#updateSelectedNoteSequenceAttribute();
   }
 
   disconnectedCallback() {
@@ -325,10 +253,82 @@ export class NoteCollectionSelector extends HTMLElement {
     }
   }
 
-  #populateNoteSequences() {
-    if (!this.#noteSequencesContainer) return;
+  #cacheDomElements() {
+    const mainButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
+      '[part="main-button"]'
+    );
 
-    this.#noteSequencesContainer.replaceChildren();
+    const dialog =
+      this.#shadowRoot.querySelector<HTMLDialogElement>('[part="dialog"]');
+
+    const closeDialogButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
+      '[part="close-dialog-button"]'
+    );
+
+    const toggleMoreInfoCheckbox =
+      this.#shadowRoot.querySelector<HTMLInputElement>(
+        "#toggle-more-info-checkbox"
+      );
+
+    const noteCollectionsDiv = this.#shadowRoot.querySelector<HTMLDivElement>(
+      "#note-collections-div"
+    );
+
+    if (
+      !mainButton ||
+      !dialog ||
+      !closeDialogButton ||
+      !noteCollectionsDiv ||
+      !toggleMoreInfoCheckbox
+    ) {
+      throw new Error(
+        "NoteCollectionSelector: Critical elements not found in shadow DOM."
+      );
+    }
+
+    this.#mainButton = mainButton;
+    this.#dialog = dialog;
+    this.#closeDialogButton = closeDialogButton;
+    this.#toggleMoreInfoCheckbox = toggleMoreInfoCheckbox;
+    this.#noteCollectionsDiv = noteCollectionsDiv;
+  }
+
+  #addEventListeners() {
+    // abort any previous controllers before creating a new one
+    this.#abortController?.abort();
+    this.#abortController = new AbortController();
+    const { signal } = this.#abortController;
+
+    this.#mainButton.addEventListener(
+      "click",
+      () => {
+        this.#dialog!.showModal();
+      },
+      { signal }
+    );
+
+    const closeDialogButton = this.#shadowRoot.getElementById(
+      "close-dialog-button"
+    ) as HTMLButtonElement;
+    closeDialogButton.addEventListener(
+      "click",
+      () => {
+        this.#dialog!.close();
+      },
+      { signal }
+    );
+
+    this.#toggleMoreInfoCheckbox.addEventListener(
+      "change",
+      () => {
+        this.#updateMoreInfoVisibility();
+      },
+      { signal }
+    );
+  }
+
+  #populateNoteCollectionsDiv() {
+    this.#noteCollectionsDiv.replaceChildren();
 
     Object.entries(noteCollectionGroupsMetadata).forEach(
       ([groupKey, groupMetadata]) => {
@@ -365,13 +365,13 @@ export class NoteCollectionSelector extends HTMLElement {
             this.#selectedNoteCollection = collection;
             this.#updateNoteCollectionSelectorButtonText();
             this.#updateSelectedNoteSequenceAttribute();
-            this.#noteCollectionSelectorDialog!.close();
+            this.#dialog.close();
           });
 
           groupNoteSequencesWrapper.appendChild(noteSequenceDiv);
         });
 
-        this.#noteSequencesContainer!.appendChild(groupDiv);
+        this.#noteCollectionsDiv.appendChild(groupDiv);
       }
     );
   }
@@ -415,8 +415,7 @@ export class NoteCollectionSelector extends HTMLElement {
    * @private
    */
   #updateNoteCollectionSelectorButtonText() {
-    this.#noteCollectionSelectorButton!.textContent = this
-      .#selectedNoteCollection
+    this.#mainButton.textContent = this.#selectedNoteCollection
       ? this.#selectedNoteCollection.primaryName
       : "Select Sequence";
   }
