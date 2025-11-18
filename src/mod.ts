@@ -83,29 +83,36 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         }
       }
 
+      > #toggle-more-info-label {
+        padding: 0.5em;
+        border: 0.1em solid currentColor;
+        border-radius: 0.5em;
+        cursor: pointer;
+      }
+
       > #note-collections-div {
         display: flex;
         flex-direction: column;
         gap: 1em;
         margin-block-start: 2em;
+
+        > #group-wrapper {
+          > #note-collection-group-div {
+            margin-block: 0.5em;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1em;
+          }
+
+          > h3 {
+            margin: 0em;
+          }
+        }
       }
     }
 
     [part="dialog"]::backdrop {
       background: var(--_dialog-backdrop-background);
-    }
-
-    #group-wrapper {
-      > h3 {
-        margin: 0em;
-      }
-    }
-
-    #note-collection-group-div {
-      margin-block: 0.5em;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1em;
     }
 
     .note-collection-option {
@@ -138,15 +145,18 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       }
     }
 
-    #toggle-more-info-label {
-      padding: 0.5em;
-      border: 0.1em solid currentColor;
-      border-radius: 0.5em;
-      cursor: pointer;
-    }
-
     .hidden {
       display: none;
+    }
+
+    .visually-hidden {
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      height: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
+      width: 1px;
     }
   </style>
 
@@ -157,8 +167,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       SVG is part of the project and is licensed under CC0 1.0 Universal. -->
       <svg viewBox="0 -960 960 960">
         <path
-          style="display:inline;stroke-width:0.520841"
-          d="m 573.75,-880.70312 v 192.34374 51.64063 a 82.761503,123.486 59.29 0 0 -134.84375,5.70313 82.761503,123.486 59.29 0 0 -65.54687,134.14062 82.761503,123.486 59.29 0 0 147.65624,9.60938 82.761503,123.486 59.29 0 0 52.73438,-47.1875 v 90.07812 a 82.761503,123.486 59.29 0 0 -134.84375,5.78125 82.761503,123.486 59.29 0 0 -65.54687,134.0625 82.761503,123.486 59.29 0 0 147.65624,9.6875 82.761503,123.486 59.29 0 0 52.73438,-47.1875 v 89.29687 a 82.761503,123.486 59.29 0 0 -134.84375,5.78126 82.761503,123.486 59.29 0 0 -65.54687,134.14062 82.761503,123.486 59.29 0 0 147.65624,9.60938 82.761503,123.486 59.29 0 0 73.28126,-102.96876 82.761503,123.486 59.29 0 0 0,-2.26562 v -189.45312 a 82.761503,123.486 59.29 0 0 0,-2.26563 v -190.07813 a 82.761503,123.486 59.29 0 0 0,-2.26562 v -95.85938 -192.34374 z"
+          d="M 705 -793.04688 A 158.9 237.09 59.29 0 0 564.0625 -748.82812 A 158.9 237.09 59.29 0 0 423.51562 -551.09375 A 158.9 237.09 59.29 0 0 423.51562 -546.71875 L 423.51562 -530.3125 A 158.9 237.09 59.29 0 0 239.0625 -487.96875 A 158.9 237.09 59.29 0 0 113.125 -230.46875 A 158.9 237.09 59.29 0 0 255.78125 -167.73438 A 158.9 237.09 59.29 0 0 396.71875 -211.95312 A 158.9 237.09 59.29 0 0 537.26562 -409.6875 A 158.9 237.09 59.29 0 0 537.26562 -414.0625 L 537.26562 -430.46875 A 158.9 237.09 59.29 0 0 721.71875 -472.8125 A 158.9 237.09 59.29 0 0 847.65625 -730.3125 A 158.9 237.09 59.29 0 0 705 -793.04688 z M 642.89062 -610.78125 L 476.32812 -513.51562 A 158.9 237.09 59.29 0 0 476.25 -513.59375 L 642.89062 -610.78125 z M 484.45312 -447.26562 A 158.9 237.09 59.29 0 0 484.53125 -447.1875 L 317.89062 -350 L 484.45312 -447.26562 z"
         />
       </svg>
     </slot>
@@ -222,7 +231,7 @@ export class NoteCollectionSelector extends HTMLElement {
     super();
     this.#shadowRoot = this.attachShadow({ mode: "open" });
     this.#shadowRoot.appendChild(
-      noteCollectionSelectorTemplate.content.cloneNode(true)
+      noteCollectionSelectorTemplate.content.cloneNode(true),
     );
     this.#cacheDomElements();
   }
@@ -241,7 +250,7 @@ export class NoteCollectionSelector extends HTMLElement {
   attributeChangedCallback(
     name: string,
     oldValue: string | null,
-    newValue: string | null
+    newValue: string | null,
   ) {
     // Only proceed if the attribute's value has actually changed
     if (oldValue === newValue) return;
@@ -255,23 +264,25 @@ export class NoteCollectionSelector extends HTMLElement {
 
   #cacheDomElements() {
     const mainButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
-      '[part="main-button"]'
+      '[part="main-button"]',
     );
 
-    const dialog =
-      this.#shadowRoot.querySelector<HTMLDialogElement>('[part="dialog"]');
+    const dialog = this.#shadowRoot.querySelector<HTMLDialogElement>(
+      '[part="dialog"]',
+    );
 
     const closeDialogButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
-      '[part="close-dialog-button"]'
+      '[part="close-dialog-button"]',
     );
 
-    const toggleMoreInfoCheckbox =
-      this.#shadowRoot.querySelector<HTMLInputElement>(
-        "#toggle-more-info-checkbox"
-      );
+    const toggleMoreInfoCheckbox = this.#shadowRoot.querySelector<
+      HTMLInputElement
+    >(
+      "#toggle-more-info-checkbox",
+    );
 
     const noteCollectionsDiv = this.#shadowRoot.querySelector<HTMLDivElement>(
-      "#note-collections-div"
+      "#note-collections-div",
     );
 
     if (
@@ -282,7 +293,7 @@ export class NoteCollectionSelector extends HTMLElement {
       !toggleMoreInfoCheckbox
     ) {
       throw new Error(
-        "NoteCollectionSelector: Critical elements not found in shadow DOM."
+        "NoteCollectionSelector: Critical elements not found in shadow DOM.",
       );
     }
 
@@ -302,20 +313,17 @@ export class NoteCollectionSelector extends HTMLElement {
     this.#mainButton.addEventListener(
       "click",
       () => {
-        this.#dialog!.showModal();
+        this.#dialog.showModal();
       },
-      { signal }
+      { signal },
     );
 
-    const closeDialogButton = this.#shadowRoot.getElementById(
-      "close-dialog-button"
-    ) as HTMLButtonElement;
-    closeDialogButton.addEventListener(
+    this.#closeDialogButton.addEventListener(
       "click",
       () => {
-        this.#dialog!.close();
+        this.#dialog.close();
       },
-      { signal }
+      { signal },
     );
 
     this.#toggleMoreInfoCheckbox.addEventListener(
@@ -323,7 +331,7 @@ export class NoteCollectionSelector extends HTMLElement {
       () => {
         this.#updateMoreInfoVisibility();
       },
-      { signal }
+      { signal },
     );
   }
 
@@ -372,7 +380,7 @@ export class NoteCollectionSelector extends HTMLElement {
         });
 
         this.#noteCollectionsDiv.appendChild(groupDiv);
-      }
+      },
     );
   }
 
@@ -391,7 +399,7 @@ export class NoteCollectionSelector extends HTMLElement {
       <div>${noteCollection.type.join(", ")}</div>
       <div>${noteCollection.characteristics.join(", ")}</div>
       <div>${noteCollection.patternShort.join("-")}</div>
-      <div>${noteCollection.pattern.join("-")}</div>
+      <div>${noteCollection.pattern.join(", ")}</div>
     `;
   }
 
@@ -402,7 +410,7 @@ export class NoteCollectionSelector extends HTMLElement {
    */
   #updateMoreInfoVisibility() {
     const moreInfoElements = this.#shadowRoot?.querySelectorAll(
-      ".more-info-div"
+      ".more-info-div",
     ) as NodeListOf<HTMLDivElement>;
     moreInfoElements.forEach((el) => {
       el.classList.toggle("hidden", !this.#toggleMoreInfoCheckbox!.checked);
@@ -429,7 +437,7 @@ export class NoteCollectionSelector extends HTMLElement {
     if (this.#selectedNoteCollectionKey) {
       this.setAttribute(
         "selected-note-collection-key",
-        this.#selectedNoteCollectionKey
+        this.#selectedNoteCollectionKey,
       );
     } else {
       this.removeAttribute("selected-note-collection-key");
@@ -457,12 +465,12 @@ export class NoteCollectionSelector extends HTMLElement {
             },
             bubbles: true,
             composed: true, // Allows the event to cross the Shadow DOM boundary
-          }
-        )
+          },
+        ),
       );
     } else {
       console.warn(
-        "attempted to dispatch note-collection-selected event with null data"
+        "attempted to dispatch note-collection-selected event with null data",
       );
     }
   }
@@ -499,7 +507,7 @@ export class NoteCollectionSelector extends HTMLElement {
    * @prop {NoteCollectionKey | null} selectedNoteCollectionKey
    */
   set selectedNoteCollectionKey(
-    newNoteCollectionKey: NoteCollectionKey | null
+    newNoteCollectionKey: NoteCollectionKey | null,
   ) {
     this.#selectedNoteCollectionKey = newNoteCollectionKey;
     // Look up the full note collection object based on the key, or set to null if key is null
