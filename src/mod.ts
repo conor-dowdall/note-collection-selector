@@ -204,8 +204,8 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
 `;
 
 export interface NoteCollectionSelectedEventDetail {
-  noteCollectionKey: NoteCollectionKey;
-  noteCollection: NoteCollection;
+  noteCollectionKey: NoteCollectionKey | null;
+  noteCollection: NoteCollection | null;
 }
 
 export class NoteCollectionSelector extends HTMLElement {
@@ -260,7 +260,7 @@ export class NoteCollectionSelector extends HTMLElement {
       // Update the internal state with the new key
       this.selectedNoteCollectionKey = newValue as NoteCollectionKey | null;
       // Dispatch the selection event to notify consumers of the change
-      this.#dispatchNoteSequenceSelectedEvent();
+      this.#dispatchNoteCollectionSelectedEvent();
     }
   }
 
@@ -487,29 +487,20 @@ export class NoteCollectionSelector extends HTMLElement {
    * @private
    * @fires NoteSequenceSelectedEvent
    */
-  #dispatchNoteSequenceSelectedEvent() {
-    if (
-      this.#selectedNoteCollectionKey !== null &&
-      this.#selectedNoteCollection !== null
-    ) {
-      this.dispatchEvent(
-        new CustomEvent<NoteCollectionSelectedEventDetail>(
-          "note-collection-selected",
-          {
-            detail: {
-              noteCollectionKey: this.#selectedNoteCollectionKey,
-              noteCollection: this.#selectedNoteCollection,
-            },
-            bubbles: true,
-            composed: true, // Allows the event to cross the Shadow DOM boundary
+  #dispatchNoteCollectionSelectedEvent() {
+    this.dispatchEvent(
+      new CustomEvent<NoteCollectionSelectedEventDetail>(
+        "note-collection-selected",
+        {
+          detail: {
+            noteCollectionKey: this.#selectedNoteCollectionKey,
+            noteCollection: this.#selectedNoteCollection,
           },
-        ),
-      );
-    } else {
-      console.warn(
-        "attempted to dispatch note-collection-selected event with null data",
-      );
-    }
+          bubbles: true,
+          composed: true, // Allows the event to cross the Shadow DOM boundary
+        },
+      ),
+    );
   }
 
   /**
@@ -555,11 +546,18 @@ export class NoteCollectionSelector extends HTMLElement {
   set selectedNoteCollectionKey(
     newNoteCollectionKey: NoteCollectionKey | null,
   ) {
-    this.#selectedNoteCollectionKey = newNoteCollectionKey;
-    // Look up the full note collection object based on the key, or set to null if key is null
-    this.#selectedNoteCollection = newNoteCollectionKey
-      ? noteCollections[newNoteCollectionKey]
-      : null;
+    // Look up the full note collection object based on the key,
+    // set values to null if key is null or invalid
+    if (
+      newNoteCollectionKey !== null &&
+      noteCollections[newNoteCollectionKey] !== undefined
+    ) {
+      this.#selectedNoteCollectionKey = newNoteCollectionKey;
+      this.#selectedNoteCollection = noteCollections[newNoteCollectionKey];
+    } else {
+      this.#selectedNoteCollectionKey = null;
+      this.#selectedNoteCollection = null;
+    }
     this.#updateMainButton();
     this.#syncSelectedNoteCollectionKeyAttribute();
     // No need to dispatch event here, as attributeChangedCallback will do it
