@@ -4,7 +4,7 @@
   "license": "CC0 1.0 Universal",
   "exports": "./src/mod.ts",
   "imports": {
-    "@musodojo/music-theory-data": "jsr:@musodojo/music-theory-data@^20.2.0"
+    "@musodojo/music-theory-data": "jsr:@musodojo/music-theory-data@^20.4.0"
   },
   "compilerOptions": {
     "lib": [
