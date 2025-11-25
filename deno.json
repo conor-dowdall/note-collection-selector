@@ -1,6 +1,6 @@
 {
   "name": "@musodojo/note-collection-selector",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "license": "CC0 1.0 Universal",
   "exports": "./src/mod.ts",
   "imports": {
