@@ -40,7 +40,7 @@ cat > "$NPM_DIR/package.json" <<EOF
   "description": "A custom HTML element for selecting a note collection, and dispatching events with the details.",
   "keywords": [
     "music",
-    "theory",
+    "theory"
   ],
   "license": "CC0-1.0",
   "author": "Conor Dowdall",
