@@ -57,7 +57,7 @@ cat > "$NPM_DIR/package.json" <<EOF
     "@musodojo/music-theory-data": "$DEP_VERSION"
   },
   "devDependencies": {
-    "esbuild": "^0.25.11",
+    "esbuild": "^0.27.0",
     "typescript": "^5.9.3"
   },
   "scripts": {
