@@ -71,27 +71,29 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
 
       min-width: var(--_main-icon-size);
 
-      > #main-button-text-span {
+      & > #main-button-text-span {
         grid-area: 1 / 1;
       }
 
-      > slot {
+      & > slot {
         height: var(--_main-icon-size);
       }
 
-      ::slotted(svg),
-      ::slotted(img),
-      > slot > svg {
-        grid-area: 1 / 1;
+      /* Size icons, but let text content flow naturally */
+      & > ::slotted(svg),
+      & > ::slotted(img),
+      & > slot > svg {
         width: var(--_main-icon-size);
         height: var(--_main-icon-size);
+        /* Ensure icons are on the same grid cell if multiple are slotted */
+        grid-area: 1 / 1;
       }
     }
 
     [part="dialog"] {
       padding: var(--_default-spacing);
 
-      > [part="close-dialog-button"] {
+      & > [part="close-dialog-button"] {
         display: grid;
         place-items: center;
         padding: var(--_default-spacing);
@@ -100,9 +102,9 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         margin-block-end: var(--_default-spacing);
 
         /* Size icons, but let text content flow naturally */
-        ::slotted(svg),
-        ::slotted(img),
-        > slot[name="close-dialog-icon"] > svg {
+        & > ::slotted(svg),
+        & > ::slotted(img),
+        & > slot[name="close-dialog-icon"] > svg {
           width: var(--_close-dialog-icon-size);
           height: var(--_close-dialog-icon-size);
           /* Ensure icons are on the same grid cell if multiple are slotted */
@@ -110,28 +112,28 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         }
       }
 
-      > #toggle-more-info-label {
+      & > #toggle-more-info-label {
         padding: 0.5em;
         border: 0.1em solid currentColor;
         border-radius: 0.5em;
         cursor: pointer;
       }
 
-      > #note-collections-div {
+      & > #note-collections-div {
         display: flex;
         flex-direction: column;
-        gap: 1em;
+        gap: var(--_default-spacing);
         margin-block-start: 2em;
 
-        > #note-collection-group-wrapper {
-          > #note-collection-group-div {
+        & > #note-collection-group-wrapper {
+          & > #note-collection-group-div {
             margin-block: 0.5em;
             display: flex;
             flex-wrap: wrap;
             gap: 1em;
           }
 
-          > h3 {
+          & > h3 {
             margin: 0em;
           }
         }
@@ -152,7 +154,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       text-align: left;
       text-wrap: pretty; /* Enable smart text wrapping if supported */
 
-      > .note-collection-name {
+      & > .note-collection-name {
         font-weight: bold;
         font-size: 1.1em;
       }
@@ -168,13 +170,13 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         text-align: center;
       }
 
-      > .more-info-div {
+      & > .more-info-div {
         display: flex;
         flex-direction: column;
         gap: 0.5em;
       }
 
-      > .more-info-div.hidden {
+      & > .more-info-div.hidden {
         display: none;
       }
     }
