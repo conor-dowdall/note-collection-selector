@@ -412,7 +412,7 @@ export class NoteCollectionSelector extends HTMLElement {
           ([key, collection]) => {
             const noteCollectionBtn = document.createElement("button");
             noteCollectionBtn.classList.add("note-collection-option");
-            // Set a data attribute to easily find this button later
+            // Set a data attribute to use later
             noteCollectionBtn.dataset.noteCollectionKey = key;
             noteCollectionBtn.innerHTML = /* HTML */ `<span
               class="note-collection-name"
@@ -426,16 +426,6 @@ export class NoteCollectionSelector extends HTMLElement {
               collection,
             );
             noteCollectionBtn.appendChild(collectionMoreInfoDiv);
-
-            noteCollectionBtn.addEventListener("click", () => {
-              this.#selectedNoteCollectionKey = key as NoteCollectionKey;
-              this.#selectedNoteCollection = collection;
-              this.#updateMainButton();
-              this.#syncSelectedNoteCollectionKeyAttribute();
-              this.#handleSelectionChange(key as NoteCollectionKey, collection);
-              this.#dialog.close();
-            });
-
             noteCollectionGroupDiv.appendChild(noteCollectionBtn);
           },
         );
@@ -445,7 +435,6 @@ export class NoteCollectionSelector extends HTMLElement {
     );
 
     this.#noteCollectionsDiv.replaceChildren(frag);
-    this.#updateSelectionInDialog();
   }
 
   #addEventListeners() {
@@ -483,6 +472,24 @@ export class NoteCollectionSelector extends HTMLElement {
       () => {
         this.selectedNoteCollectionKey = null;
         this.#dialog.close();
+      },
+      { signal },
+    );
+
+    this.#noteCollectionsDiv.addEventListener(
+      "click",
+      (event) => {
+        const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+          '[part="note-button"]',
+        );
+        if (button) {
+          this.selectedNoteCollectionKey =
+            button.dataset.noteCollectionKey as NoteCollectionKey ??
+              null;
+          this.#dialog.close();
+        } else {
+          console.warn("no note collection button found");
+        }
       },
       { signal },
     );
@@ -582,7 +589,7 @@ export class NoteCollectionSelector extends HTMLElement {
       ".more-info-div",
     ) as NodeListOf<HTMLDivElement>;
     moreInfoElements.forEach((el) => {
-      el.classList.toggle("hidden", !this.#toggleMoreInfoCheckbox!.checked);
+      el.classList.toggle("hidden", this.#toggleMoreInfoCheckbox.checked);
     });
   }
 
@@ -695,6 +702,10 @@ export class NoteCollectionSelector extends HTMLElement {
   ) {
     if (this.#selectedNoteCollectionKey === newNoteCollectionKey) return;
 
+    const previousNoteCollectionKey = this.#selectedNoteCollectionKey;
+    this.#selectedNoteCollectionKey = null;
+    this.#selectedNoteCollection = null;
+
     // Look up the full note collection object based on the key,
     // set values to null if key is null or invalid
     if (
@@ -703,20 +714,17 @@ export class NoteCollectionSelector extends HTMLElement {
     ) {
       this.#selectedNoteCollectionKey = newNoteCollectionKey;
       this.#selectedNoteCollection = noteCollections[newNoteCollectionKey];
-      this.#handleSelectionChange(
-        newNoteCollectionKey,
-        noteCollections[newNoteCollectionKey],
-      );
-    } else {
-      this.#selectedNoteCollectionKey = null;
-      this.#selectedNoteCollection = null;
-      this.#handleSelectionChange(null, null);
     }
 
-    // Only update the button and attribute if the component is connected to the DOM
+    // Only perform DOM updates and dispatch events if the component is connected
+    // and the value has actually changed.
     if (this.isConnected) {
-      this.#updateMainButton();
       this.#syncSelectedNoteCollectionKeyAttribute();
+      this.#updateMainButton();
+      this.#updateSelectedButtonElementState();
+      if (this.#selectedNoteCollectionKey !== previousNoteCollectionKey) {
+        this.#dispatchNoteCollectionSelectedEvent();
+      }
     }
   }
 
