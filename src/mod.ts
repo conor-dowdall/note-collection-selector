@@ -694,35 +694,40 @@ export class NoteCollectionSelector extends HTMLElement {
    * Sets the currently selected note collection by its unique key.
    * This will update the component's display and internal state. If a valid key
    * is provided, the corresponding `NoteCollection` object will be looked up
-   * and stored internally. Setting to `null` clears the selection.
+   * and stored internally along witht the key.
+   * An invalid key is equivalent to setting the key to null.
+   * Setting to `null` clears the selection.
    * @param {NoteCollectionKey | null} newNoteCollectionKey - The unique key of the note collection to select.
    */
   set selectedNoteCollectionKey(
     newNoteCollectionKey: NoteCollectionKey | null,
   ) {
-    if (this.#selectedNoteCollectionKey === newNoteCollectionKey) return;
+    // Resolve the input to a valid key or null
+    const resolvedNoteCollection =
+      noteCollections[newNoteCollectionKey as NoteCollectionKey] as
+        | NoteCollection
+        | undefined;
+    const resolvedKey = newNoteCollectionKey !== null &&
+        resolvedNoteCollection !== undefined
+      ? newNoteCollectionKey
+      : null;
 
-    const previousNoteCollectionKey = this.#selectedNoteCollectionKey;
-    this.#selectedNoteCollectionKey = null;
-    this.#selectedNoteCollection = null;
+    const hasChanged = this.#selectedNoteCollectionKey !== resolvedKey;
 
-    // Look up the full note collection object based on the key,
-    // set values to null if key is null or invalid
-    if (
-      newNoteCollectionKey !== null &&
-      noteCollections[newNoteCollectionKey] !== undefined
-    ) {
-      this.#selectedNoteCollectionKey = newNoteCollectionKey;
-      this.#selectedNoteCollection = noteCollections[newNoteCollectionKey];
+    if (hasChanged) {
+      this.#selectedNoteCollectionKey = resolvedKey;
+      this.#selectedNoteCollection = resolvedKey
+        ? resolvedNoteCollection as NoteCollection
+        : null;
     }
 
     // Only perform DOM updates and dispatch events if the component is connected
-    // and the value has actually changed.
     if (this.isConnected) {
+      // invalid values must sync attribute to null no matter what
       this.#syncSelectedNoteCollectionKeyAttribute();
-      this.#updateMainButton();
-      this.#updateSelectedButtonElementState();
-      if (this.#selectedNoteCollectionKey !== previousNoteCollectionKey) {
+      if (hasChanged) {
+        this.#updateMainButton();
+        this.#updateSelectedButtonElementState();
         this.#dispatchNoteCollectionSelectedEvent();
       }
     }
