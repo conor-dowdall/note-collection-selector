@@ -123,8 +123,8 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       & > #note-collections-div {
         display: flex;
         flex-direction: column;
-        gap: var(--_default-spacing);
-        margin-block-start: 2em;
+        gap: 2em;
+        margin-block-start: 1.5em;
 
         & > #note-collection-group-wrapper {
           & > #note-collection-group-div {
@@ -135,19 +135,19 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
           }
 
           & > h3 {
-            margin: 0em;
+            margin: 0;
+            font-size: 1em;
+            font-variant: small-caps;
           }
         }
       }      
-      
-
     }
 
     [part="dialog"]::backdrop {
       background: var(--_dialog-backdrop-background);
     }
 
-    .note-collection-option {
+    [part="note-collection-button"] {
       padding: 0.5em;
       min-width: 4ch;
       max-width: 80ch;
@@ -158,14 +158,13 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       text-wrap: pretty;
 
       & > .note-collection-name {
-        font-weight: bold;
-        font-size: 1.1em;
+        /* font-weight: bold; */
+        font-size: 0.9em;
       }
 
       /* Style for the currently selected option */
       &[data-selected="true"] {
-        border-color: var(--accent-color, blue);
-        outline: 0.1em solid var(--accent-color, blue);
+        outline: 0.3em double light-dark(black, white);
       }
 
       /* When the "more info" div is hidden, center the text */
@@ -273,16 +272,26 @@ export class NoteCollectionSelector extends HTMLElement {
   #clearSelectionButton!: HTMLButtonElement;
   #noteCollectionsDiv!: HTMLDivElement;
 
+  /** Caches the currently selected button element in the dialog to avoid re-querying the DOM. */
   #selectedButtonElement: HTMLButtonElement | null = null;
 
+  /** Manages event listeners to allow for cleanup on disconnection. */
   #abortController: AbortController | null = null;
+  /** The internal state for the selected note collection key (e.g., "ionian"). */
   #selectedNoteCollectionKey: NoteCollectionKey | null = null;
+  /** The internal state for the selected note collection key's matching object. */
   #selectedNoteCollection: NoteCollection | null = null;
 
+  /**
+   * Specifies which attributes should trigger `attributeChangedCallback` when they change.
+   */
   static get observedAttributes(): string[] {
     return ["selected-note-collection-key"];
   }
 
+  /**
+   * Initializes the component by creating the shadow DOM and caching essential elements.
+   */
   constructor() {
     super();
     this.#shadowRoot = this.attachShadow({ mode: "open" });
@@ -292,17 +301,32 @@ export class NoteCollectionSelector extends HTMLElement {
     this.#cacheDomElements();
   }
 
+  /**
+   * Called when the element is inserted into the DOM.
+   * Finalizes setup by populating dynamic content and attaching event listeners.
+   */
   connectedCallback() {
     this.#populateNoteCollectionsDiv();
     this.#addEventListeners();
-    this.#updateMainButton();
     this.#syncSelectedNoteCollectionKeyAttribute();
+    this.#updateSelectedButtonElementState();
+    this.#updateMainButton();
   }
 
+  /**
+   * Called when the element is removed from the DOM.
+   * Cleans up by aborting any pending operations and removing event listeners.
+   */
   disconnectedCallback() {
     this.#abortController?.abort();
   }
 
+  /**
+   * Called when an observed attribute of the custom element is added, removed, or changed.
+   * @param name - The name of the attribute that changed.
+   * @param oldValue - The old value of the attribute.
+   * @param newValue - The new value of the attribute.
+   */
   attributeChangedCallback(
     name: string,
     oldValue: string | null,
@@ -320,6 +344,10 @@ export class NoteCollectionSelector extends HTMLElement {
     }
   }
 
+  /**
+   * Queries the shadow DOM for critical elements and caches them as private properties.
+   * Throws an error if any required element is not found, failing early.
+   */
   #cacheDomElements() {
     const mainButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
       '[part="main-button"]',
@@ -380,6 +408,9 @@ export class NoteCollectionSelector extends HTMLElement {
     this.#noteCollectionsDiv = noteCollectionsDiv;
   }
 
+  /**
+   * Dynamically generates and populates the note collection buttons in the dialog.
+   */
   #populateNoteCollectionsDiv() {
     const frag = document.createDocumentFragment();
 
@@ -387,7 +418,6 @@ export class NoteCollectionSelector extends HTMLElement {
     // a heading and a note collection group div
     Object.entries(noteCollectionGroupsMetadata).forEach(
       ([groupKey, groupMetadata]) => {
-        const noteCollectionGroupKey = groupKey as NoteCollectionGroupKey;
         // wrapper for heading and note-collection
         const groupWrapper = document.createElement("div");
         groupWrapper.id = "note-collection-group-wrapper";
@@ -406,12 +436,11 @@ export class NoteCollectionSelector extends HTMLElement {
 
         const currentNoteCollectionGroup =
           groupedNoteCollections[groupKey as NoteCollectionGroupKey];
-        groupedNoteCollections[noteCollectionGroupKey];
 
         Object.entries(currentNoteCollectionGroup).forEach(
           ([key, collection]) => {
             const noteCollectionBtn = document.createElement("button");
-            noteCollectionBtn.classList.add("note-collection-option");
+            noteCollectionBtn.setAttribute("part", "note-collection-button");
             // Set a data attribute to use later
             noteCollectionBtn.dataset.noteCollectionKey = key;
             noteCollectionBtn.innerHTML = /* HTML */ `<span
@@ -437,6 +466,10 @@ export class NoteCollectionSelector extends HTMLElement {
     this.#noteCollectionsDiv.replaceChildren(frag);
   }
 
+  /**
+   * Attaches all necessary event listeners for the component's interactive elements.
+   * Uses an AbortController to facilitate easy cleanup on disconnection.
+   */
   #addEventListeners() {
     // abort any previous controllers before creating a new one
     this.#abortController?.abort();
@@ -447,6 +480,10 @@ export class NoteCollectionSelector extends HTMLElement {
       "click",
       () => {
         this.#dialog.showModal();
+        this.#selectedButtonElement?.scrollIntoView({
+          block: "center",
+          behavior: "smooth",
+        });
       },
       { signal },
     );
@@ -480,7 +517,7 @@ export class NoteCollectionSelector extends HTMLElement {
       "click",
       (event) => {
         const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
-          '[part="note-button"]',
+          '[part="note-collection-button"]',
         );
         if (button) {
           this.selectedNoteCollectionKey =
@@ -540,27 +577,6 @@ export class NoteCollectionSelector extends HTMLElement {
   }
 
   /**
-   * Handles the logic for when a new note collection is selected,
-   * including updating state and UI.
-   * @private
-   */
-  #handleSelectionChange(
-    key: NoteCollectionKey | null,
-    collection: NoteCollection | null,
-  ) {
-    // Prevent redundant updates if the selection hasn't changed
-    if (key === this.#selectedNoteCollectionKey) return;
-
-    this.#selectedNoteCollectionKey = key;
-    this.#selectedNoteCollection = collection;
-
-    // Update all UI parts
-    this.#updateMainButton();
-    this.#syncSelectedNoteCollectionKeyAttribute();
-    this.#updateSelectionInDialog();
-  }
-
-  /**
    * Renders the detailed "more info" content for a given note collection.
    * @private
    * @param {NoteCollection} noteCollection - The note collection data object.
@@ -589,33 +605,8 @@ export class NoteCollectionSelector extends HTMLElement {
       ".more-info-div",
     ) as NodeListOf<HTMLDivElement>;
     moreInfoElements.forEach((el) => {
-      el.classList.toggle("hidden", this.#toggleMoreInfoCheckbox.checked);
+      el.classList.toggle("hidden", !this.#toggleMoreInfoCheckbox.checked);
     });
-  }
-
-  /**
-   * Updates the visual state of the buttons in the dialog to reflect the current selection.
-   * It adds a 'selected' class to the currently selected button and removes it from any others.
-   * @private
-   */
-  #updateSelectionInDialog() {
-    const allOptionButtons = this.#noteCollectionsDiv.querySelectorAll(
-      ".note-collection-option",
-    );
-
-    allOptionButtons.forEach((button) => {
-      const btn = button as HTMLButtonElement;
-      const isSelected =
-        btn.dataset.noteCollectionKey === this.#selectedNoteCollectionKey;
-      btn.dataset.selected = isSelected ? "true" : "false";
-    });
-  }
-
-  #scrollToSelected() {
-    const selectedButton = this.#noteCollectionsDiv.querySelector(
-      '.note-collection-option[data-selected="true"]',
-    ) as HTMLButtonElement | null;
-    selectedButton?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
   /**
@@ -667,6 +658,8 @@ export class NoteCollectionSelector extends HTMLElement {
     const noteCollectionKeys = Object.keys(
       noteCollections,
     ) as NoteCollectionKey[];
+
+    if (noteCollectionKeys.length <= 1) return;
 
     let randomNoteCollectionKey: NoteCollectionKey;
 
@@ -724,6 +717,9 @@ export class NoteCollectionSelector extends HTMLElement {
     // Only perform DOM updates and dispatch events if the component is connected
     if (this.isConnected) {
       // invalid values must sync attribute to null no matter what
+      // e.g. A user or script sets the attribute to an invalid value
+      // <note-collection-selector selected-note-collection-key="InvalidValue">
+      // should be synced to null
       this.#syncSelectedNoteCollectionKeyAttribute();
       if (hasChanged) {
         this.#updateMainButton();
