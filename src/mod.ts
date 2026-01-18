@@ -39,14 +39,18 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
   <style>
     :host {
       --_main-icon-size: var(--main-icon-size, 2.5ch);
-      --_close-dialog-icon-size: var(--close-dialog-icon-size, 2ch);
+      --_close-dialog-icon-size: var(--close-dialog-icon-size, 3.5ch);
 
       --_dialog-backdrop-background: var(
         --dialog-backdrop-background,
         light-dark(rgb(255 255 255 / 50%), rgb(0 0 0 / 50%))
       );
 
-      --_default-spacing: var(--default-spacing, 0.5em);
+      --_default-spacing: var(--default-spacing, 0.7em);
+      --_dim-text-color: var(
+        --dim-text-color,
+        light-dark(rgb(0 0 0 / 60%), rgb(255 255 255 / 60%))
+      );
 
       display: inline-block;
       font-size: inherit;
@@ -92,14 +96,17 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
 
     [part="dialog"] {
       padding: var(--_default-spacing);
+      border-radius: var(--_default-spacing);
+      border-color: var(--_dim-text-color);
+      border-style: solid;
+      border-width: 0.2em;
 
       & > [part="close-dialog-button"] {
         display: grid;
         place-items: center;
-        padding: var(--_default-spacing);
         border: none;
         margin-inline-start: auto;
-        margin-block-end: var(--_default-spacing);
+        color: var(--_dim-text-color);
 
         /* Size icons, but let text content flow naturally */
         & > ::slotted(svg),
@@ -112,14 +119,31 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         }
       }
 
-      & > [part="clear-selection-button"],
-      & > #toggle-more-info-label {
-        padding: 0.5em;
-        border: 0.1em solid currentColor;
-        border-radius: 0.5em;
+      & > #toggle-more-info-label,
+      & > [part="clear-selection-button"] {
         cursor: pointer;
+        border: 0.12em solid var(--_dim-text-color);
+        border-radius: var(--_default-spacing);
+        corner-shape: squircle;
+        padding: 0.3em 0.7em;
+
+        > #toggle-more-info-checkbox {
+          display: none;
+        }
+
+        &:has(> #toggle-more-info-checkbox:checked) {
+          background: linear-gradient(
+            45deg,
+            transparent,
+            rgb(84 172 235 / 30%)
+          );
+        }
       }
-      
+
+      & > [part="clear-selection-button"] {
+        margin-inline-start: 1em;
+      }
+
       & > #note-collections-div {
         display: flex;
         flex-direction: column;
@@ -138,33 +162,41 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
             margin: 0;
             font-size: 1em;
             font-variant: small-caps;
+            color: var(--_dim-text-color);
           }
         }
-      }      
+      }
     }
 
     [part="dialog"]::backdrop {
       background: var(--_dialog-backdrop-background);
+      backdrop-filter: blur(3px);
     }
 
     [part="note-collection-button"] {
       padding: 0.5em;
       min-width: 4ch;
       max-width: 80ch;
-      border: 0.1em solid currentColor;
-      border-radius: 0.5em;
+      border: 0.12em solid var(--_dim-text-color);
+      border-radius: 0.6em;
+      corner-shape: squircle;
       cursor: pointer;
       text-align: left;
       text-wrap: pretty;
+      background: linear-gradient(
+        45deg,
+        transparent,
+        light-dark(rgb(0 0 0 / 10%), rgb(255 255 255 / 15%))
+      );
 
       & > .note-collection-name {
-        /* font-weight: bold; */
         font-size: 0.9em;
       }
 
       /* Style for the currently selected option */
       &[data-selected="true"] {
-        outline: 0.3em double light-dark(black, white);
+        outline: 0.3em double rgb(84 172 235);
+        background: linear-gradient(45deg, transparent, rgb(84 172 235 / 30%));
       }
 
       /* When the "more info" div is hidden, center the text */
@@ -232,10 +264,10 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
 
     <label id="toggle-more-info-label">
       <input type="checkbox" id="toggle-more-info-checkbox" />
-      more info
+      More Info
     </label>
 
-     <button part="clear-selection-button">Clear Selection</button>
+    <button part="clear-selection-button">Clear Selection</button>
 
     <div id="note-collections-div">
       <!-- the buttons in here are dynamically generated 
@@ -359,25 +391,22 @@ export class NoteCollectionSelector extends HTMLElement {
 
     const mainButtonSlot = mainButton?.querySelector<HTMLSlotElement>("slot");
 
-    const dialog = this.#shadowRoot.querySelector<HTMLDialogElement>(
-      '[part="dialog"]',
-    );
+    const dialog =
+      this.#shadowRoot.querySelector<HTMLDialogElement>('[part="dialog"]');
 
     const closeDialogButton = this.#shadowRoot.querySelector<HTMLButtonElement>(
       '[part="close-dialog-button"]',
     );
 
-    const toggleMoreInfoCheckbox = this.#shadowRoot.querySelector<
-      HTMLInputElement
-    >(
-      "#toggle-more-info-checkbox",
-    );
+    const toggleMoreInfoCheckbox =
+      this.#shadowRoot.querySelector<HTMLInputElement>(
+        "#toggle-more-info-checkbox",
+      );
 
-    const clearSelectionButton = this.#shadowRoot.querySelector<
-      HTMLButtonElement
-    >(
-      '[part="clear-selection-button"]',
-    );
+    const clearSelectionButton =
+      this.#shadowRoot.querySelector<HTMLButtonElement>(
+        '[part="clear-selection-button"]',
+      );
 
     const noteCollectionsDiv = this.#shadowRoot.querySelector<HTMLDivElement>(
       "#note-collections-div",
@@ -451,9 +480,8 @@ export class NoteCollectionSelector extends HTMLElement {
 
             const collectionMoreInfoDiv = document.createElement("div");
             collectionMoreInfoDiv.classList.add("more-info-div", "hidden");
-            collectionMoreInfoDiv.innerHTML = this.#getMoreInfoHTMLString(
-              collection,
-            );
+            collectionMoreInfoDiv.innerHTML =
+              this.#getMoreInfoHTMLString(collection);
             noteCollectionBtn.appendChild(collectionMoreInfoDiv);
             noteCollectionGroupDiv.appendChild(noteCollectionBtn);
           },
@@ -521,8 +549,7 @@ export class NoteCollectionSelector extends HTMLElement {
         );
         if (button) {
           this.selectedNoteCollectionKey =
-            button.dataset.noteCollectionKey as NoteCollectionKey ??
-              null;
+            (button.dataset.noteCollectionKey as NoteCollectionKey) ?? null;
           this.#dialog.close();
         } else {
           console.warn("no note collection button found");
@@ -547,8 +574,7 @@ export class NoteCollectionSelector extends HTMLElement {
         this.#selectedNoteCollection.primaryName;
       this.#mainButtonTextSpan.style.display = "initial";
       this.#mainButtonSlot.style.display = "none";
-      this.#mainButton.ariaLabel =
-        `${this.#selectedNoteCollection.primaryName} selected`;
+      this.#mainButton.ariaLabel = `${this.#selectedNoteCollection.primaryName} selected`;
     } else {
       // Default state when no note is selected
       this.#mainButtonTextSpan.style.display = "none";
@@ -566,11 +592,10 @@ export class NoteCollectionSelector extends HTMLElement {
 
     // Add the highlight to the newly selected button
     if (this.#selectedNoteCollectionKey) {
-      const newSelectedButton = this.#noteCollectionsDiv.querySelector<
-        HTMLButtonElement
-      >(
-        `[data-note-collection-key="${this.#selectedNoteCollectionKey}"]`,
-      );
+      const newSelectedButton =
+        this.#noteCollectionsDiv.querySelector<HTMLButtonElement>(
+          `[data-note-collection-key="${this.#selectedNoteCollectionKey}"]`,
+        );
       newSelectedButton?.setAttribute("data-selected", "true");
       this.#selectedButtonElement = newSelectedButton;
     }
@@ -696,21 +721,20 @@ export class NoteCollectionSelector extends HTMLElement {
     newNoteCollectionKey: NoteCollectionKey | null,
   ) {
     // Resolve the input to a valid key or null
-    const resolvedNoteCollection =
-      noteCollections[newNoteCollectionKey as NoteCollectionKey] as
-        | NoteCollection
-        | undefined;
-    const resolvedKey = newNoteCollectionKey !== null &&
-        resolvedNoteCollection !== undefined
-      ? newNoteCollectionKey
-      : null;
+    const resolvedNoteCollection = noteCollections[
+      newNoteCollectionKey as NoteCollectionKey
+    ] as NoteCollection | undefined;
+    const resolvedKey =
+      newNoteCollectionKey !== null && resolvedNoteCollection !== undefined
+        ? newNoteCollectionKey
+        : null;
 
     const hasChanged = this.#selectedNoteCollectionKey !== resolvedKey;
 
     if (hasChanged) {
       this.#selectedNoteCollectionKey = resolvedKey;
       this.#selectedNoteCollection = resolvedKey
-        ? resolvedNoteCollection as NoteCollection
+        ? (resolvedNoteCollection as NoteCollection)
         : null;
     }
 
