@@ -46,7 +46,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         light-dark(rgb(255 255 255 / 50%), rgb(0 0 0 / 50%))
       );
 
-      --_default-spacing: var(--default-spacing, 0.7em);
+      --_default-spacing: var(--default-spacing, 1em);
       --_dim-text-color: var(
         --dim-text-color,
         light-dark(rgb(0 0 0 / 60%), rgb(255 255 255 / 60%))
@@ -97,9 +97,16 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
     [part="dialog"] {
       padding: var(--_default-spacing);
       border-radius: var(--_default-spacing);
+      corner-shape: squircle;
       border-color: var(--_dim-text-color);
       border-style: solid;
       border-width: 0.2em;
+      background: black;
+      background-image: linear-gradient(
+        45deg,
+        transparent,
+        light-dark(rgb(0 0 0 / 10%), rgb(255 255 255 / 15%))
+      );
 
       & > [part="close-dialog-button"] {
         display: grid;
@@ -119,7 +126,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         }
       }
 
-      & > #toggle-more-info-label,
+      & > [part="toggle-more-info-button"],
       & > [part="clear-selection-button"] {
         cursor: pointer;
         border: 0.12em solid var(--_dim-text-color);
@@ -262,7 +269,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       Select a Note Collection
     </h2>
 
-    <label id="toggle-more-info-label">
+    <label part="toggle-more-info-button">
       <input type="checkbox" id="toggle-more-info-checkbox" />
       More Info
     </label>
@@ -508,10 +515,7 @@ export class NoteCollectionSelector extends HTMLElement {
       "click",
       () => {
         this.#dialog.showModal();
-        this.#selectedButtonElement?.scrollIntoView({
-          block: "center",
-          behavior: "smooth",
-        });
+        this.#scrollSelectedButtonIntoView();
       },
       { signal },
     );
@@ -528,6 +532,7 @@ export class NoteCollectionSelector extends HTMLElement {
       "change",
       () => {
         this.#updateMoreInfoVisibility();
+        this.#scrollSelectedButtonIntoView();
       },
       { signal },
     );
@@ -631,6 +636,13 @@ export class NoteCollectionSelector extends HTMLElement {
     ) as NodeListOf<HTMLDivElement>;
     moreInfoElements.forEach((el) => {
       el.classList.toggle("hidden", !this.#toggleMoreInfoCheckbox.checked);
+    });
+  }
+
+  #scrollSelectedButtonIntoView() {
+    this.#selectedButtonElement?.scrollIntoView({
+      block: "center",
+      behavior: "smooth",
     });
   }
 
