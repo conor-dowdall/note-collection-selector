@@ -172,5 +172,3 @@ The following CSS custom properties are available for quick customization:
   `2ch`).
 - `--dialog-backdrop-background`: Background of the dialog backdrop (default:
   `light-dark(rgb(255 255 255 / 50%), rgb(0 0 0 / 50%))`).
-- `--default-spacing`: General spacing unit used within the dialog (default:
-  `0.5em`).

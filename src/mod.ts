@@ -46,10 +46,17 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         light-dark(rgb(255 255 255 / 50%), rgb(0 0 0 / 50%))
       );
 
-      --_default-spacing: var(--default-spacing, 1em);
-      --_dim-text-color: var(
-        --dim-text-color,
-        light-dark(rgb(0 0 0 / 60%), rgb(255 255 255 / 60%))
+      --_color-primary: var(
+        --color-primary,
+        light-dark(rgb(0 0 0), rgb(255 255 255))
+      );
+      --_color-primary-dim: var(
+        --color-primary-dim,
+        light-dark(rgb(0 0 0 / 50%), rgb(255 255 255 / 60%))
+      );
+      --_color-accent: var(
+        --color-accent,
+        light-dark(rgb(136, 184, 240), rgb(45, 129, 255))
       );
 
       display: inline-block;
@@ -95,13 +102,13 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
     }
 
     [part="dialog"] {
-      padding: var(--_default-spacing);
-      border-radius: var(--_default-spacing);
+      padding: 1em;
+      border-radius: 0.5em;
       corner-shape: squircle;
-      border-color: var(--_dim-text-color);
+      border-color: var(--_color-primary-dim);
       border-style: solid;
       border-width: 0.2em;
-      background: black;
+      background: light-dark(rgb(255 255 255), rgb(0 0 0));
       background-image: linear-gradient(
         45deg,
         transparent,
@@ -113,7 +120,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
         place-items: center;
         border: none;
         margin-inline-start: auto;
-        color: var(--_dim-text-color);
+        color: var(--_color-primary-dim);
 
         /* Size icons, but let text content flow naturally */
         & > ::slotted(svg),
@@ -129,21 +136,17 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       & > [part="toggle-more-info-button"],
       & > [part="clear-selection-button"] {
         cursor: pointer;
-        border: 0.12em solid var(--_dim-text-color);
-        border-radius: var(--_default-spacing);
+        border: 0.12em solid var(--_color-primary-dim);
+        border-radius: 0.5em;
         corner-shape: squircle;
         padding: 0.3em 0.7em;
 
-        > #toggle-more-info-checkbox {
+        & > #toggle-more-info-checkbox {
           display: none;
         }
 
         &:has(> #toggle-more-info-checkbox:checked) {
-          background: linear-gradient(
-            45deg,
-            transparent,
-            rgb(84 172 235 / 30%)
-          );
+          background: linear-gradient(45deg, transparent, var(--_color-accent));
         }
       }
 
@@ -169,7 +172,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
             margin: 0;
             font-size: 1em;
             font-variant: small-caps;
-            color: var(--_dim-text-color);
+            color: var(--_color-primary-dim);
           }
         }
       }
@@ -184,7 +187,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
       padding: 0.5em;
       min-width: 4ch;
       max-width: 80ch;
-      border: 0.12em solid var(--_dim-text-color);
+      border: 0.12em solid var(--_color-primary-dim);
       border-radius: 0.6em;
       corner-shape: squircle;
       cursor: pointer;
@@ -202,8 +205,9 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
 
       /* Style for the currently selected option */
       &[data-selected="true"] {
-        outline: 0.3em double rgb(84 172 235);
-        background: linear-gradient(45deg, transparent, rgb(84 172 235 / 30%));
+        outline: 0.3em double var(--_color-accent);
+        outline-offset: -0.1em;
+        box-shadow: 0em 0em 1em var(--_color-accent);
       }
 
       /* When the "more info" div is hidden, center the text */
@@ -251,7 +255,7 @@ noteCollectionSelectorTemplate.innerHTML = /* HTML */ `
     </slot>
   </button>
 
-  <dialog part="dialog" aria-labelledby="dialog-heading">
+  <dialog part="dialog" closedby="any" aria-labelledby="dialog-heading">
     <button part="close-dialog-button" aria-label="Close Dialog">
       <slot name="close-dialog-icon">
         <!-- Default icon when no note is selected. Can be overridden by the user. 
